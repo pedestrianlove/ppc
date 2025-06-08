@@ -1,1 +1,2 @@
 - https://ppc-exercises.cs.aalto.fi/course/open2025
+- https://www.youtube.com/watch?v=zBRjekrOdCU&list=PL2RY7P3JxZN-Pz1nwvnoJ9uEHmOmv4jmi&index=14
