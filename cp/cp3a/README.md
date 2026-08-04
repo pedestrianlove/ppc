@@ -21,3 +21,13 @@ benchmarks/2c.txt     0.015s  pass
 benchmarks/3.txt      0.379s  pass
 benchmarks/4.txt      1.806s  pass
 ```
+
+## 3. Fixing correctness
+```
+test                    time  result
+benchmarks/1.txt      0.114s  pass
+benchmarks/2a.txt     1.787s  pass
+benchmarks/2b.txt     1.780s  pass
+benchmarks/2c.txt     1.775s  pass
+benchmarks/3.txt   [failed]
+```

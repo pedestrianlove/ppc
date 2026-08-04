@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
-#include <omp.h>
+
+constexpr int LANE = 8;
 
 /*
 This is the function you need to implement. Quick reference:
@@ -16,44 +17,85 @@ void correlate(int ny, int nx, const float *data, float *result) {
     double* mean    = (double*)malloc(ny * sizeof(double));
     double* stdterm = (double*)malloc(ny * sizeof(double));
 
-    #pragma omp parallel
-    {
-        int WORLD = omp_get_num_threads();
-        int rank = omp_get_thread_num();
-
-        /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
-        #pragma omp for
-        for (int i = rank; i < ny - WORLD + 1; i+=WORLD) {
-            const float* row_ptr = data + (size_t)i * nx;
-            double sum = 0.0;
-            double sum_sq = 0.0;
-
-            #pragma omp simd reduction(+: sum, sum_sq)
-            for (int k = 0; k < nx; ++k) {
-                double val = row_ptr[k];
-                sum += val;
-                sum_sq += val * val;
+    /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
+    int i = 0;
+    for (; i < ny-(LANE-1); i+=LANE) {
+        double sum[LANE] = {0.0};
+        for (int k = 0; k < nx; ++k) {
+            for (int c = 0; c < LANE; ++c) {
+                sum[c] += data[(i + c) * nx + k];
             }
-
-            double m = sum / nx;
-            mean[i] = m;
-            stdterm[i] = sqrt(sum_sq - m * sum);
+        }
+        for (int c = 0; c < LANE; ++c) {
+            mean[i + c] = sum[c] / nx;
         }
 
-        /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
-        #pragma omp for collapse(2)
-        for (int i = rank; i < ny - WORLD; i+=WORLD) {
-            for (int j = 0; j <= i; ++j) {
-                const float* row_i = data + (size_t)i * nx;
-                const float* row_j = data + (size_t)j * nx;
-                double cov = 0.0;
-                #pragma omp simd reduction(+:cov)
-                for (int k = 0; k < nx; ++k) {
-                    cov += (row_i[k] - mean[i]) * (row_j[k] - mean[j]);
-                }
-
-                result[i + j * (size_t)ny] = (float)(cov / (stdterm[i] * stdterm[j]));
+        double varsum[LANE] = {0.0};
+        for (int k = 0; k < nx; ++k) {
+            for (int c = 0; c < LANE; ++c) {
+                double diff = data[(i+c)*nx + k] - mean[i+c];
+                varsum[c] = fma(diff, diff, varsum[c]);
             }
+        }
+        /* stdterm[i] holds Σ (a_i,k – mean[i])^2 */
+        for (int c = 0; c < LANE; ++c) {
+            stdterm[i+c] = varsum[c];
+        }
+    }
+    for (; i < ny; ++i) {
+        const float* row_ptr = data + (size_t)i * nx;
+        double sum = 0.0;
+        for (int k = 0; k < nx; ++k) {
+            sum += row_ptr[k];
+        }
+        mean[i] = sum / nx;
+
+        double varsum = 0.0;
+        for (int k = 0; k < nx; ++k) {
+            double diff = row_ptr[k] - mean[i];
+            varsum = fma(diff, diff, varsum);
+        }
+        /* stdterm[i] holds Σ (a_i,k – mean[i])^2 */
+        stdterm[i] = varsum;
+    }
+
+    /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
+    for (int i = 0; i < ny; ++i) {
+        int j;
+        for (j = 0; j <= i-(LANE-1); j+=LANE) {
+            double cov[LANE] = {0.0};
+            for (int k = 0; k < nx; ++k) {
+                for (int c = 0; c < LANE; ++c) {
+                    cov[c] = fma((data[i*nx + k] - mean[i]), (data[(j+c)*nx + k] - mean[j+c]), cov[c] );
+                }
+            }
+
+            float corr_val[LANE];
+            for (int c = 0; c < LANE; ++c) {
+                if (stdterm[i] > 0.0 && stdterm[j+c] > 0.0) {
+                    corr_val[c] = (float)(cov[c] / (sqrt(stdterm[i]) * sqrt(stdterm[j+c])));
+                } else {
+                    /* If either row has zero variance, define correlation as 0. */
+                    corr_val[c] = 0.0f;
+                }
+                result[i + (j+c) * (size_t)ny] = corr_val[c];
+            }
+        }
+
+        for (; j <= i; ++j) {
+            double cov = 0.0;
+            for (int k = 0; k < nx; ++k) {
+                cov = fma((data[i*nx + k] - mean[i]), (data[j*nx + k] - mean[j]), cov);
+            }
+
+            float corr_val;
+            if (stdterm[i] > 0.0 && stdterm[j] > 0.0) {
+                corr_val = (float)(cov / (sqrt(stdterm[i]) * sqrt(stdterm[j])));
+            } else {
+                /* If either row has zero variance, define correlation as 0. */
+                corr_val = 0.0f;
+            }
+            result[i + j * (size_t)ny] = corr_val;
         }
     }
 
