@@ -18,10 +18,12 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
     #pragma omp parallel
     {
+        int WORLD = omp_get_num_threads();
+        int rank = omp_get_thread_num();
 
         /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
         #pragma omp for
-        for (int i = 0; i < ny; ++i) {
+        for (int i = rank; i < ny - WORLD + 1; i+=WORLD) {
             const float* row_ptr = data + (size_t)i * nx;
             double sum = 0.0;
             double sum_sq = 0.0;
@@ -40,7 +42,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
         /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
         #pragma omp for collapse(2)
-        for (int i = 0; i < ny; ++i) {
+        for (int i = rank; i < ny - WORLD; i+=WORLD) {
             for (int j = 0; j <= i; ++j) {
                 const float* row_i = data + (size_t)i * nx;
                 const float* row_j = data + (size_t)j * nx;
