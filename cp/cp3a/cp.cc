@@ -60,6 +60,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
     }
 
     /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < ny; ++i) {
         int j;
         for (j = 0; j <= i-(LANE-1); j+=LANE) {
