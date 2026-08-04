@@ -15,7 +15,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
     /* Allocate temporary arrays for per-row mean and “sum of squared deviations.” */
     double* mean    = (double*)malloc(ny * sizeof(double));
-    double* stdterm = (double*)malloc(ny * sizeof(double));
+    double* n_data = (double*)malloc(ny*nx * sizeof(double));
 
     /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
     int i = 0;
@@ -31,15 +31,21 @@ void correlate(int ny, int nx, const float *data, float *result) {
         }
 
         double varsum[LANE] = {0.0};
+        double std[LANE] = {0.0};
         for (int k = 0; k < nx; ++k) {
             for (int c = 0; c < LANE; ++c) {
                 double diff = data[(i+c)*nx + k] - mean[i+c];
-                varsum[c] = fma(diff, diff, varsum[c]);
+                varsum[c] += diff*diff;
+                n_data[(i+c)*nx + k] = diff;
             }
         }
-        /* stdterm[i] holds Σ (a_i,k – mean[i])^2 */
         for (int c = 0; c < LANE; ++c) {
-            stdterm[i+c] = sqrt(varsum[c]);
+            std[c] = sqrt(varsum[c]);
+        }
+        for (int k = 0; k < nx; ++k) {
+            for (int c = 0; c < LANE; ++c) {
+                n_data[(i+c)*nx + k] /= std[c];
+            }
         }
     }
     for (; i < ny; ++i) {
@@ -54,9 +60,13 @@ void correlate(int ny, int nx, const float *data, float *result) {
         for (int k = 0; k < nx; ++k) {
             double diff = row_ptr[k] - mean[i];
             varsum += diff*diff;
+            n_data[i*nx + k] = diff;
         }
         /* stdterm[i] holds Σ (a_i,k – mean[i])^2 */
-        stdterm[i] = sqrt(varsum);
+        double std = sqrt(varsum);
+        for (int k = 0; k < nx; ++k) {
+            n_data[i*nx + k] /= std;
+        }
     }
 
     /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
@@ -66,25 +76,25 @@ void correlate(int ny, int nx, const float *data, float *result) {
             double cov[LANE] = {0.0};
             for (int k = 0; k < nx; ++k) {
                 for (int c = 0; c < LANE; ++c) {
-                    cov[c] = fma((data[i*nx + k] - mean[i]), (data[(j+c)*nx + k] - mean[j+c]), cov[c] );
+                    cov[c] = fma(n_data[i*nx + k], n_data[(j+c)*nx + k], cov[c] );
                 }
             }
 
             for (int c = 0; c < LANE; ++c) {
-                result[i + (j+c) * (size_t)ny] = (float)(cov[c] / (stdterm[i] * stdterm[j+c]));
+                result[i + (j+c) * (size_t)ny] = (float)(cov[c]);
             }
         }
 
         for (; j <= i; ++j) {
             double cov = 0.0;
             for (int k = 0; k < nx; ++k) {
-                cov = fma((data[i*nx + k] - mean[i]), (data[j*nx + k] - mean[j]), cov);
+                cov = fma(n_data[i*nx + k], n_data[j*nx + k] , cov);
             }
 
-            result[i + j * (size_t)ny] = (float)(cov / (stdterm[i] * stdterm[j]));
+            result[i + j * (size_t)ny] = (float)(cov);
         }
     }
 
     free(mean);
-    free(stdterm);
+    free(n_data);
 }
