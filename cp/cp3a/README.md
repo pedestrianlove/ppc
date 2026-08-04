@@ -1,5 +1,7 @@
 # cp3a: Fastest double
 
+- Ryzen 5700x
+
 ## 1. baseline
 ```
 test                    time  result
@@ -41,4 +43,15 @@ benchmarks/2b.txt     0.355s  pass
 benchmarks/2c.txt     0.337s  pass
 benchmarks/3.txt      7.776s  pass
 benchmarks/4.txt     32.703s  pass
+```
+
+## 5. Pre-normalize the problem
+```
+test                    time  result
+benchmarks/1.txt      0.024s  pass
+benchmarks/2a.txt     0.341s  pass
+benchmarks/2b.txt     0.343s  pass
+benchmarks/2c.txt     0.351s  pass
+benchmarks/3.txt      6.376s  pass
+benchmarks/4.txt     20.544s  pass
 ```
