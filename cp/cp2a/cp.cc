@@ -18,8 +18,8 @@ void correlate(int ny, int nx, const float *data, float *result) {
     double* stdterm = (double*)malloc(ny * sizeof(double));
 
     /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
-    int i;
-    for (i = 0; i < ny-(LANE-1); i+=LANE) {
+    int i = 0;
+    for (; i < ny-(LANE-1); i+=LANE) {
         double sum[LANE] = {0.0};
         for (int k = 0; k < nx; ++k) {
             for (int c = 0; c < LANE; ++c) {
