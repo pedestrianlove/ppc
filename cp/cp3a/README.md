@@ -21,3 +21,14 @@ benchmarks/2b.txt                 1.072s  pass
 benchmarks/2c.txt                 1.063s  pass
 benchmarks/3.txt               [failed]
 ```
+
+## 3. Add easy multicore
+```
+test                    time  result
+benchmarks/1.txt      0.021s  pass
+benchmarks/2a.txt     0.258s  pass
+benchmarks/2b.txt     0.246s  pass
+benchmarks/2c.txt     0.245s  pass
+benchmarks/3.txt     19.150s  pass
+benchmarks/4.txt   [failed]
+```
