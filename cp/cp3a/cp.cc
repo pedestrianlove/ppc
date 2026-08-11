@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
+#include <nvtx3/nvToolsExt.h>
 
 constexpr int LANE = 16;
 
@@ -18,6 +19,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
     double* mean    = (double*)malloc(ny * sizeof(double));
     double* n_data = (double*)malloc(ny*nx * sizeof(double));
 
+    nvtxRangePush("normalize");
     /* 1) Compute mean and the sum of (value - mean)^2 for each row. */
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < ny; ++i) {
@@ -41,7 +43,9 @@ void correlate(int ny, int nx, const float *data, float *result) {
             n_data[i*nx + k] /= std;
         }
     }
+    nvtxRangePop();
 
+    nvtxRangePush("correlate");
     /* 2) For each pair (i, j) with j <= i, compute the covariance and then the correlation. */
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < ny; ++i) {
@@ -72,6 +76,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
             result[i + j * (size_t)ny] = (float)(cov);
         }
     }
+    nvtxRangePop();
 
     free(mean);
     free(n_data);
