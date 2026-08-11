@@ -32,3 +32,17 @@ benchmarks/2c.txt     0.245s  pass
 benchmarks/3.txt     19.150s  pass
 benchmarks/4.txt   [failed]
 ```
+
+## 4. New processor
+- Ryzen 5950x
+```
+test                    time  result
+benchmarks/1.txt      0.011s  pass
+benchmarks/2a.txt     0.153s  pass
+benchmarks/2b.txt     0.151s  pass
+benchmarks/2c.txt     0.154s  pass
+benchmarks/3.txt     15.903s  pass
+benchmarks/4.txt   [failed]
+```
+
+## 5. 

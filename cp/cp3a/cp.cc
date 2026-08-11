@@ -2,7 +2,7 @@
 #include <math.h>
 #include <omp.h>
 
-constexpr int LANE = 8;
+constexpr int LANE = 16;
 
 /*
 This is the function you need to implement. Quick reference:
@@ -29,6 +29,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
         double varsum = {0.0};
         double std = {0.0};
+        #pragma omp simd reduction(+:varsum)
         for (int k = 0; k < nx; ++k) {
             double diff = data[i*nx + k] - mean[i];
             n_data[i*nx + k] = diff;
@@ -49,8 +50,9 @@ void correlate(int ny, int nx, const float *data, float *result) {
             double cov[LANE] = {0.0};
             #pragma omp simd reduction(+:cov)
             for (int k = 0; k < nx; ++k) {
+                const double ik_val = n_data[i*nx + k];
                 for (int c = 0; c < LANE; ++c) {
-                    cov[c] += n_data[i*nx + k]*n_data[(j+c)*nx + k];
+                    cov[c] += ik_val * n_data[(j+c)*nx + k];
                 }
             }
 
@@ -62,9 +64,9 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
         for (; j <= i; ++j) {
             double cov = 0.0;
-            #pragma omp simd
+            #pragma omp simd reduction(+:cov)
             for (int k = 0; k < nx; ++k) {
-                cov = fma(n_data[i*nx + k], n_data[j*nx + k] , cov);
+                cov += n_data[i*nx + k]* n_data[j*nx + k];
             }
 
             result[i + j * (size_t)ny] = (float)(cov);
