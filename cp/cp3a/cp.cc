@@ -2,6 +2,7 @@
 #include <math.h>
 #include <omp.h>
 #include <nvtx3/nvToolsExt.h>
+#include <immintrin.h>
 
 constexpr int LANE = 16;
 
@@ -52,7 +53,6 @@ void correlate(int ny, int nx, const float *data, float *result) {
         int j;
         for (j = 0; j <= i-(LANE-1); j+=LANE) {
             double cov[LANE] = {0.0};
-            #pragma omp simd reduction(+:cov)
             for (int k = 0; k < nx; ++k) {
                 const double ik_val = n_data[i*nx + k];
                 for (int c = 0; c < LANE; ++c) {

@@ -1,3 +1,9 @@
 cp
 cp-demo
 out.png
+*.nsys-rep
+*.qdstrm
+*.sqlite
+
+# Python
+__pycache__
